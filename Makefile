@@ -1,13 +1,13 @@
 ROOT=$(PWD)
 OBJDIR=$(PWD)/bin
 SRCDIR=$(PWD)/src
-C_FILES=`find . -type f -iname *.c -print`
+C_FILES=`find $(SRCDIR)  -type f -iname *.c -print`
 
 all: clean build
 
 build:
 	cd $(SRCDIR)
-	gcc	$(C_FILES) -o $(OBJDIR)/monitor
+	gcc	$(C_FILES) -o $(OBJDIR)/monitor -lmysqlclient -ljnxc
 	cd $(ROOT)
 
 clean:
