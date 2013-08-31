@@ -40,18 +40,18 @@
 extern jnx_hashmap *config;
 
 void get_local_mac_address(char *interface, struct ifreq *ifr, uint8_t **src_mac);
+void get_local_ip_address_for_interface(char *interface, char *src_ip);
+void resolve_addrinfo_for_ip(char* ip, struct in_addr *ip_addr);
 void set_arp_header(uint8_t *src_mac, arp_hdr *arphdr);
 int pack_ethernet_frame(arp_hdr *arphdr, uint8_t *dst_mac, uint8_t *src_mac, uint8_t *ether_frame);
 
 int
-send_arp (char *target_ip)
+arp_send (char *target_ip)
 {
 	int i, status, frame_length, sd, bytes;
 	char *interface, *src_ip, *target;
 	arp_hdr arphdr;
 	uint8_t *src_mac, *dst_mac, *ether_frame;
-	struct addrinfo hints, *res;
-	struct sockaddr_in *ipv4;
 	struct sockaddr_ll device; // ToDo: Standardise!
 	struct ifreq ifr;
 
@@ -65,6 +65,19 @@ send_arp (char *target_ip)
 
 	get_local_mac_address(interface, &ifr, &src_mac);
 
+	// Set destination MAC address: broadcast address
+	memset (dst_mac, 0xff, 6 * sizeof (uint8_t));
+
+	get_local_ip_address_for_interface(interface, src_ip);
+
+	// Resolve sourceusing getaddrinfo().
+	resolve_addrinfo_for_ip(src_ip, (struct in_addr *) &arphdr.sender_ip);
+	
+	// Resolve target using getaddrinfo().
+	resolve_addrinfo_for_ip(target_ip, (struct in_addr *) &arphdr.target_ip);
+
+	// Fill out sockaddr_ll.
+	
 	// Find interface index from interface name and store index in
 	// struct sockaddr_ll device, which will be used as an argument of sendto().
 	if ((device.sll_ifindex = if_nametoindex (interface)) == 0) {
@@ -73,40 +86,6 @@ send_arp (char *target_ip)
 	}
 	printf ("Index for interface %s is %i\n", interface, device.sll_ifindex);
 
-	// Set destination MAC address: broadcast address
-	memset (dst_mac, 0xff, 6 * sizeof (uint8_t));
-
-	// Source IPv4 address:  you need to fill this out
-	strcpy (src_ip, "10.65.82.35");
-
-	// Destination URL or IPv4 address (must be a link-local node): you need to fill this out
-	strcpy (target, target_ip); 
-
-	// Fill out hints for getaddrinfo().
-	memset (&hints, 0, sizeof (struct addrinfo));
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = hints.ai_flags | AI_CANONNAME;
-
-	// Resolve source using getaddrinfo().
-	if ((status = getaddrinfo (src_ip, NULL, &hints, &res)) != 0) {
-		fprintf (stderr, "getaddrinfo() failed: %s\n", gai_strerror (status));
-		exit (EXIT_FAILURE);
-	}
-	ipv4 = (struct sockaddr_in *) res->ai_addr;
-	memcpy (&arphdr.sender_ip, &ipv4->sin_addr, 4 * sizeof (uint8_t));
-	freeaddrinfo (res);
-
-	// Resolve target using getaddrinfo().
-	if ((status = getaddrinfo (target, NULL, &hints, &res)) != 0) {
-		fprintf (stderr, "getaddrinfo() failed: %s\n", gai_strerror (status));
-		exit (EXIT_FAILURE);
-	}
-	ipv4 = (struct sockaddr_in *) res->ai_addr;
-	memcpy (&arphdr.target_ip, &ipv4->sin_addr, 4 * sizeof (uint8_t));
-	freeaddrinfo (res);
-
-	// Fill out sockaddr_ll.
 	device.sll_family = AF_PACKET;
 	memcpy (device.sll_addr, src_mac, 6 * sizeof (uint8_t));
 	device.sll_halen = htons (6);
@@ -176,9 +155,41 @@ get_local_mac_address(char *interface, struct ifreq *ifr, uint8_t **src_mac)
 }
 
 void
+get_local_ip_address_for_interface(char *interface, char *src_ip)
+{
+	// Source IPv4 address:  you need to fill this out
+	strcpy (src_ip, "10.65.82.35");
+}
+
+void
+resolve_addrinfo_for_ip(char* ip, struct in_addr *ip_addr)
+{
+	int status;
+	struct addrinfo hints, *res;
+	struct sockaddr_in *ipv4;
+	
+	// Fill out hints for getaddrinfo().
+	memset (&hints, 0, sizeof (struct addrinfo));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = hints.ai_flags | AI_CANONNAME;
+
+	// Resolve source using getaddrinfo().
+	if ((status = getaddrinfo (ip, NULL, &hints, &res)) != 0) {
+		fprintf (stderr, "getaddrinfo() failed: %s\n", gai_strerror (status));
+		exit (EXIT_FAILURE);
+	}
+	ipv4 = (struct sockaddr_in *) res->ai_addr;
+	// memcpy (&arphdr.sender_ip, &ipv4->sin_addr, 4 * sizeof (uint8_t));
+	memcpy (ip_addr, &ipv4->sin_addr, 4 * sizeof (uint8_t));
+	freeaddrinfo (res);
+}
+
+void
 set_arp_header(uint8_t *src_mac, arp_hdr *arphdr)
 {
 	int frame_length;
+
 	// Hardware type (16 bits): 1 for ethernet
 	arphdr->htype = htons (1);
 

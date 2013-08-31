@@ -46,4 +46,16 @@ struct _arp_hdr {
 char *allocate_strmem (int);
 uint8_t *allocate_ustrmem (int);
 
+// Function arp_send
+//     Sends an ARP packet to an IP address via interface specified in
+//     confing['INTERFACE'].
+//
+// Parameters
+//     target_ip - string containing the IPv4 address of the target host
+//
+// Return value
+//     Returns an integer, 0 if success and non-zero otherwise.
+//
+int arp_send (char *target_ip);
+
 #endif // __ARP_H__

@@ -20,6 +20,7 @@
 #include <getopt.h>
 #include <jnxc_headers/jnxhash.h>
 #include <jnxc_headers/jnxfile.h>
+#include "arp/arp.h"
 
 jnx_hashmap *config = NULL;
 void usage()
