@@ -41,6 +41,10 @@ struct _arp_hdr {
 #define IP4_HDRLEN 20      // IPv4 header length
 #define ARP_HDRLEN 28      // ARP header length
 #define ARPOP_REQUEST 1    // Taken from <linux/if_arp.h>
+#define ARPOP_REPLY 2      // Taken from <linux/if_arp.h>
+
+#define ETH_P_ARP 0x0806   // Taken from <linux/if_ether.h>
+#define ETH_P_ALL 0x0003   // Taken from <linux/if_ether.h>
 
 // Function prototypes
 char *allocate_strmem (int);

@@ -40,7 +40,7 @@
 extern jnx_hashmap *config;
 
 void get_local_mac_address(char *interface, struct ifreq *ifr, uint8_t **src_mac);
-void get_local_ip_address_for_interface(char *interface, char *src_ip);
+void resolve_local_ip_address_for_interface(char *interface, struct in_addr *ip_addr);
 void resolve_addrinfo_for_ip(char* ip, struct in_addr *ip_addr);
 void set_arp_header(uint8_t *src_mac, arp_hdr *arphdr);
 int pack_ethernet_frame(arp_hdr *arphdr, uint8_t *dst_mac, uint8_t *src_mac, uint8_t *ether_frame);
@@ -49,7 +49,7 @@ int
 arp_send (char *target_ip)
 {
 	int i, status, frame_length, sd, bytes;
-	char *interface, *src_ip, *target;
+	char *interface, *target;
 	arp_hdr arphdr;
 	uint8_t *src_mac, *dst_mac, *ether_frame;
 	struct sockaddr_ll device; // ToDo: Standardise!
@@ -61,23 +61,28 @@ arp_send (char *target_ip)
 	ether_frame = allocate_ustrmem (IP_MAXPACKET);
 	interface = allocate_strmem (40);
 	target = allocate_strmem (40);
-	src_ip = allocate_strmem (INET_ADDRSTRLEN);
 
 	get_local_mac_address(interface, &ifr, &src_mac);
 
 	// Set destination MAC address: broadcast address
 	memset (dst_mac, 0xff, 6 * sizeof (uint8_t));
 
-	get_local_ip_address_for_interface(interface, src_ip);
+	resolve_local_ip_address_for_interface(interface, (struct in_addr *) &arphdr.sender_ip);
 
-	// Resolve sourceusing getaddrinfo().
-	resolve_addrinfo_for_ip(src_ip, (struct in_addr *) &arphdr.sender_ip);
-	
 	// Resolve target using getaddrinfo().
 	resolve_addrinfo_for_ip(target_ip, (struct in_addr *) &arphdr.target_ip);
 
+	set_arp_header(src_mac, &arphdr);
+
+	frame_length = pack_ethernet_frame(&arphdr, dst_mac, src_mac, ether_frame);
+
+	// Submit request for a raw socket descriptor.
+	if ((sd = socket (PF_PACKET, SOCK_RAW, htons (ETH_P_ALL))) < 0) {
+		perror ("socket() failed ");
+		exit (EXIT_FAILURE);
+	}
+
 	// Fill out sockaddr_ll.
-	
 	// Find interface index from interface name and store index in
 	// struct sockaddr_ll device, which will be used as an argument of sendto().
 	if ((device.sll_ifindex = if_nametoindex (interface)) == 0) {
@@ -90,15 +95,6 @@ arp_send (char *target_ip)
 	memcpy (device.sll_addr, src_mac, 6 * sizeof (uint8_t));
 	device.sll_halen = htons (6);
 
-	set_arp_header(src_mac, &arphdr);
-
-	frame_length = pack_ethernet_frame(&arphdr, dst_mac, src_mac, ether_frame);
-	
-	// Submit request for a raw socket descriptor.
-	if ((sd = socket (PF_PACKET, SOCK_RAW, htons (ETH_P_ALL))) < 0) {
-		perror ("socket() failed ");
-		exit (EXIT_FAILURE);
-	}
 
 	// Send ethernet frame to socket.
 	if ((bytes = sendto (sd, ether_frame, frame_length, 0, (struct sockaddr *) &device, sizeof (device))) <= 0) {
@@ -115,7 +111,6 @@ arp_send (char *target_ip)
 	free (ether_frame);
 	free (interface);
 	free (target);
-	free (src_ip);
 
 	return (EXIT_SUCCESS);
 }
@@ -155,10 +150,24 @@ get_local_mac_address(char *interface, struct ifreq *ifr, uint8_t **src_mac)
 }
 
 void
-get_local_ip_address_for_interface(char *interface, char *src_ip)
+resolve_local_ip_address_for_interface(char *interface, struct in_addr *ip_addr)
 {
-	// Source IPv4 address:  you need to fill this out
-	strcpy (src_ip, "10.65.82.35");
+	int sd;
+	struct ifreq ifr;
+	struct sockaddr_in *ipv4;
+
+	sd = socket(AF_INET, SOCK_DGRAM, 0);
+
+	// We want to get an IPv4 IP address
+	ifr.ifr_addr.sa_family = AF_INET;
+	strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);
+	// Resolve using ioctl for interface
+	ioctl(sd, SIOCGIFADDR, &ifr);
+
+	close(sd);
+
+	ipv4 = (struct sockaddr_in *) (&ifr.ifr_addr);
+	memcpy (ip_addr, &ipv4->sin_addr, 4 * sizeof (uint8_t));
 }
 
 void
@@ -167,7 +176,7 @@ resolve_addrinfo_for_ip(char* ip, struct in_addr *ip_addr)
 	int status;
 	struct addrinfo hints, *res;
 	struct sockaddr_in *ipv4;
-	
+
 	// Fill out hints for getaddrinfo().
 	memset (&hints, 0, sizeof (struct addrinfo));
 	hints.ai_family = AF_INET;
@@ -180,7 +189,7 @@ resolve_addrinfo_for_ip(char* ip, struct in_addr *ip_addr)
 		exit (EXIT_FAILURE);
 	}
 	ipv4 = (struct sockaddr_in *) res->ai_addr;
-	// memcpy (&arphdr.sender_ip, &ipv4->sin_addr, 4 * sizeof (uint8_t));
+	
 	memcpy (ip_addr, &ipv4->sin_addr, 4 * sizeof (uint8_t));
 	freeaddrinfo (res);
 }
