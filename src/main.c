@@ -68,6 +68,9 @@ int main(int argc, char** argv)
 		usage();
 	}
 
+	arp_send("192.168.1.69");
+	arp_recv();
+
 	printf("Hello world!\n");
 	return 0;
 }

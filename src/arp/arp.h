@@ -62,4 +62,12 @@ uint8_t *allocate_ustrmem (int);
 //
 int arp_send (char *target_ip);
 
+// Function arp_recv
+//     Receives an ARP packet via any local interface.
+//
+// Return value
+//     Returns an integer, 0 if success and non-zero otherwise.
+//
+int arp_recv();
+
 #endif // __ARP_H__
