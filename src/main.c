@@ -20,9 +20,25 @@
 #include <getopt.h>
 #include <jnxc_headers/jnxhash.h>
 #include <jnxc_headers/jnxfile.h>
+#include <pthread.h>
+#include <unistd.h>
+
 #include "arp/arp.h"
+#include "database/sql_interface_layer.h"
+#include "shared.h"
+
+#define RETRIES 5
+#define TIMEOUT 10
 
 jnx_hashmap *config = NULL;
+
+typedef struct 
+{
+	char **array;
+	int size;
+}
+array_size;
+
 void usage()
 {
 	printf("Please provide -c [configuration]\n");
@@ -43,10 +59,19 @@ int parse_conf_file(char *path, jnx_hashmap **config)
 	}
 	return 0;
 }
+
+void *start_recv_loop(void *data);
+void *start_send_loop(void *data);
+char **update_devices_to_probe(char **devices, int *num_devices);
+
 int main(int argc, char** argv)
 {
-	int c;
+	int c, i, num_devices, num_machines;
 	char *configuration = NULL;
+	pthread_t recv_thread, send_thread;
+	char **devices, **machines;
+	array_size data;
+
 	while((c = getopt(argc, argv,"c:")) != -1)
 	{
 		switch(c)
@@ -68,9 +93,86 @@ int main(int argc, char** argv)
 		usage();
 	}
 
-	arp_send("192.168.1.69");
+	pthread_create(&recv_thread, NULL, start_recv_loop, NULL);
+	sleep(1);
+
+	devices = get_devices_to_probe(&num_devices);
+
+	for (i = 0; i < RETRIES; i++)
+	{
+		if (num_devices <= 0)
+		{
+			printf("All devices responded.\n");
+			break;
+		}
+
+		data.array = devices;
+		data.size = num_devices;
+
+		pthread_create(&send_thread, NULL, start_send_loop, (void*) &data);
+		pthread_join(send_thread, NULL);
+
+		devices = update_devices_to_probe(devices, &num_devices);
+	}
+
+	return 0;
+}
+
+void *
+start_recv_loop(void *data)
+{
 	arp_recv();
 
-	printf("Hello world!\n");
-	return 0;
+	return NULL;
+}
+
+void *
+start_send_loop(void *data)
+{
+	array_size *ips_to_send = (array_size*) data;
+	char **ips = ips_to_send->array;
+	int size = ips_to_send->size;
+	int i;
+
+	for (i = 0; i < size; i++)
+	{
+		printf("Probing %s\n", ips[i]);
+		arp_send(ips[i]);
+	}
+
+	return NULL;
+}
+
+char **
+update_devices_to_probe(char **devices, int *num_devices)
+{
+	char **temp, **seen;
+	int i, j, seen_size, new_size = 0, found;
+
+	seen = get_ips_that_responded(&seen_size);
+
+	temp = malloc((*num_devices) * sizeof(char**));
+	for (i = 0; i < *num_devices; i++)
+	{
+		found = 0;
+		for (j = 0; j < seen_size; j++)
+		{
+			if (strcmp(devices[i], seen[j]) == 0)
+			{
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found)
+		{
+			temp[new_size] = devices[i];
+			printf("Retrying %s\n", temp[new_size]);
+			new_size++;
+		}
+	}
+
+	free(devices);
+
+	return temp;
 }

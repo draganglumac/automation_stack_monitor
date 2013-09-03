@@ -17,6 +17,7 @@
  */
 #ifndef __SQL_INTERFACE_LAYER_H__
 #define __SQL_INTERFACE_LAYER_H__
+
 #include "results_bucket.h"
 #include <jnxc_headers/jnxhash.h>
 
@@ -31,4 +32,6 @@
 extern jnx_hashmap *config;
 int sql_setup_credentials(void);
 int sql_send_query(mysql_result_bucket **results_bucket, const char *querytemplate, ...);
+char **get_devices_to_probe(int *num_devices);
+
 #endif

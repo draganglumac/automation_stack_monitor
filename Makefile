@@ -7,7 +7,7 @@ all: clean build
 
 build:
 	cd $(SRCDIR)
-	gcc	$(C_FILES) -o $(OBJDIR)/monitor -lmysqlclient -ljnxc
+	gcc	$(C_FILES) -o $(OBJDIR)/monitor -lmysqlclient -ljnxc -lpthread -g
 	cd $(ROOT)
 
 clean:

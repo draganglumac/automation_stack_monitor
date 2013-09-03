@@ -22,6 +22,8 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
+
 int sql_setup_credentials(void)
 {
 
@@ -46,4 +48,40 @@ int sql_send_query(mysql_result_bucket **results_bucket, const char *querytempla
 	printf("Sending query -> %s\n",constructed_query);	
 #endif
 	return sql_query(constructed_query,results_bucket);
+}
+char **get_devices_to_probe(int *num_devices)
+{
+	char *ips[] = {
+		"10.65.82.61",
+		"10.65.82.62",
+		"10.65.82.63",
+		"10.65.82.64",
+		"10.65.82.65",
+		"10.65.82.66",
+		"10.65.82.67",
+		"10.65.82.68",
+		"10.65.82.69",
+		"10.65.82.70",
+		"10.65.82.71",
+		"10.65.82.72",
+		"10.65.82.73",
+		"10.65.82.74",
+		"10.65.82.75",
+		"10.65.82.76",
+		"10.65.82.77",
+		"10.65.82.78",
+		"10.65.82.79",
+		"10.65.82.80"
+	};
+
+	char **temp = malloc(20 * sizeof(char**));
+	int i;
+
+	for (i = 0; i < *num_devices; i++)
+	{
+		temp[i] = malloc(strlen(ips[i]));
+		strcpy(temp[i], ips[i]);
+	}
+
+	return temp;
 }
