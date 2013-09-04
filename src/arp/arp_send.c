@@ -132,7 +132,7 @@ get_local_mac_address(char *interface, struct ifreq *ifr, uint8_t **src_mac)
 	// Use ioctl() to look up interface name and get its MAC address.
 	memset (ifr, 0, sizeof (ifr));
 	sprintf (ifr->ifr_name, "%s", interface);
-	if (ioctl (sd, SIOCGIFHWADDR, &ifr) < 0) {
+	if (ioctl (sd, SIOCGIFHWADDR, ifr) < 0) {
 		perror ("ioctl() failed to get source MAC address\n");
 		printf("Error -> %s\n", strerror(errno));
 		exit (EXIT_FAILURE);
@@ -140,14 +140,13 @@ get_local_mac_address(char *interface, struct ifreq *ifr, uint8_t **src_mac)
 	close (sd);
 
 	// Copy source MAC address.
-	memcpy (src_mac, ifr->ifr_hwaddr.sa_data, 6 * sizeof (uint8_t));
+	memcpy (*src_mac, ifr->ifr_hwaddr.sa_data, 6 * sizeof (uint8_t));
 
-	// Report source MAC address to stdout.
-	printf ("MAC address for interface %s is ", interface);
-	for (i=0; i<5; i++) {
-		printf ("%02x:", src_mac[i]);
-	}
-	printf ("%02x\n", src_mac[5]);
+//	// Report source MAC address to stdout.
+//	for (i=0; i<5; i++) {
+//		printf ("%02x:", (*src_mac)[i]);
+//	}
+//	printf ("%02x\n", (*src_mac)[5]);
 }
 
 void

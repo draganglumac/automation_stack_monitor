@@ -113,6 +113,8 @@ int main(int argc, char** argv)
 		pthread_join(send_thread, NULL);
 
 		devices = update_devices_to_probe(devices, &num_devices);
+		printf("new num_devices to probe = %d\n", num_devices);
+		sleep(TIMEOUT);
 	}
 
 	return 0;
@@ -178,5 +180,6 @@ update_devices_to_probe(char **devices, int *num_devices)
 
 	free(devices);
 
+	*num_devices = new_size;
 	return temp;
 }
