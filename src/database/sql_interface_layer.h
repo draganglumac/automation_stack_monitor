@@ -33,5 +33,6 @@ extern jnx_hashmap *config;
 int sql_setup_credentials(void);
 int sql_send_query(mysql_result_bucket **results_bucket, const char *querytemplate, ...);
 char **get_devices_to_probe(int *num_devices);
+void update_non_responsive_devices(char **devices, int num_devices);
 
 #endif

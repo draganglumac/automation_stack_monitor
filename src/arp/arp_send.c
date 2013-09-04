@@ -89,7 +89,6 @@ arp_send (char *target_ip)
 		perror ("if_nametoindex() failed to obtain interface index ");
 		exit (EXIT_FAILURE);
 	}
-	printf ("Index for interface %s is %i\n", interface, device.sll_ifindex);
 
 	device.sll_family = AF_PACKET;
 	memcpy (device.sll_addr, src_mac, 6 * sizeof (uint8_t));
@@ -134,19 +133,12 @@ get_local_mac_address(char *interface, struct ifreq *ifr, uint8_t **src_mac)
 	sprintf (ifr->ifr_name, "%s", interface);
 	if (ioctl (sd, SIOCGIFHWADDR, ifr) < 0) {
 		perror ("ioctl() failed to get source MAC address\n");
-		printf("Error -> %s\n", strerror(errno));
 		exit (EXIT_FAILURE);
 	}
 	close (sd);
 
 	// Copy source MAC address.
 	memcpy (*src_mac, ifr->ifr_hwaddr.sa_data, 6 * sizeof (uint8_t));
-
-//	// Report source MAC address to stdout.
-//	for (i=0; i<5; i++) {
-//		printf ("%02x:", (*src_mac)[i]);
-//	}
-//	printf ("%02x\n", (*src_mac)[5]);
 }
 
 void

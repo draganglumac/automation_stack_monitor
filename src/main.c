@@ -29,6 +29,8 @@
 
 #define RETRIES 5
 #define TIMEOUT 10
+#define AGGR_RETRIES 5
+#define AGGR_TIMEOUT 5
 
 jnx_hashmap *config = NULL;
 
@@ -63,14 +65,15 @@ int parse_conf_file(char *path, jnx_hashmap **config)
 void *start_recv_loop(void *data);
 void *start_send_loop(void *data);
 char **update_devices_to_probe(char **devices, int *num_devices);
+void poll_normally(char ***devices, int *num_devices);
+void poll_aggressively(char ***devices, int *num_devices);
 
 int main(int argc, char** argv)
 {
 	int c, i, num_devices, num_machines;
 	char *configuration = NULL;
-	pthread_t recv_thread, send_thread;
+	pthread_t recv_thread;
 	char **devices, **machines;
-	array_size data;
 
 	while((c = getopt(argc, argv,"c:")) != -1)
 	{
@@ -98,23 +101,22 @@ int main(int argc, char** argv)
 
 	devices = get_devices_to_probe(&num_devices);
 
-	for (i = 0; i < RETRIES; i++)
+	printf("Starting normal polling cycle.\n");	
+	poll_normally(&devices, &num_devices);
+
+	if (num_devices > 0)
 	{
-		if (num_devices <= 0)
-		{
-			printf("All devices responded.\n");
-			break;
-		}
+		printf("Starting aggressive polling cycle to try to wake up sleepy devices.\n");
+		poll_aggressively(&devices, &num_devices);
+	}
 
-		data.array = devices;
-		data.size = num_devices;
-
-		pthread_create(&send_thread, NULL, start_send_loop, (void*) &data);
-		pthread_join(send_thread, NULL);
-
-		devices = update_devices_to_probe(devices, &num_devices);
-		printf("new num_devices to probe = %d\n", num_devices);
-		sleep(TIMEOUT);
+	if (num_devices > 0)
+	{
+		update_non_responsive_devices(devices, num_devices);
+	}
+	else
+	{
+		printf("All devices responded with MAC addresses.\n");
 	}
 
 	return 0;
@@ -156,6 +158,11 @@ update_devices_to_probe(char **devices, int *num_devices)
 	int i, j, seen_size, new_size = 0, found;
 
 	seen = get_ips_that_responded(&seen_size);
+	if (seen == NULL)
+	{
+		// No responses received
+		return devices;
+	}
 
 	temp = malloc((*num_devices) * sizeof(char**));
 	for (i = 0; i < *num_devices; i++)
@@ -183,3 +190,44 @@ update_devices_to_probe(char **devices, int *num_devices)
 	*num_devices = new_size;
 	return temp;
 }
+
+void
+poll(char ***devices, int *num_devices, int retries, int timeout)
+{
+	int i;
+	array_size data;
+	pthread_t recv_thread, send_thread;
+	
+	for (i = 0; i < retries; i++)
+	{
+		if (*num_devices <= 0)
+		{
+			printf("All devices responded.\n");
+			break;
+		}
+
+		data.array = *devices;
+		data.size = *num_devices;
+
+		pthread_create(&send_thread, NULL, start_send_loop, (void*) &data);
+		pthread_join(send_thread, NULL);
+		
+		sleep(timeout);
+
+		*devices = update_devices_to_probe(*devices, num_devices);
+		printf("\nAt the end of iteration <%d> new num_devices to probe = %d\n", i, *num_devices);
+	}
+}
+
+void
+poll_normally(char ***devices, int *num_devices)
+{
+	poll(devices, num_devices, RETRIES, TIMEOUT);
+}
+
+void
+poll_aggressively(char ***devices, int *num_devices)
+{
+	poll(devices, num_devices, AGGR_RETRIES, AGGR_TIMEOUT);
+}
+

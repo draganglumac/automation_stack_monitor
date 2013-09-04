@@ -44,6 +44,13 @@ get_ips_that_responded(int *size)
 	void *val;
 
 pthread_mutex_lock(&mux);
+	if (ips_to_macs == NULL)
+	{
+pthread_mutex_unlock(&mux);
+		*size = 0;
+		return NULL;
+	}
+
 	*size = jnx_hash_get_keys(ips_to_macs, &keys);
 	retval = malloc((*size) * sizeof(char**));
 	for (i = 0; i < *size; i++)

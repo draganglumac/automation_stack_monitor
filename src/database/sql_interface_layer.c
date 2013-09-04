@@ -86,3 +86,14 @@ char **get_devices_to_probe(int *num_devices)
 
 	return temp;
 }
+
+void
+update_non_responsive_devices(char **devices, int num_devices)
+{
+	int i;
+
+	for (i = 0; i < num_devices; i++)
+	{
+		printf("IP %s is not responding.\n", devices[i]);
+	}
+}
