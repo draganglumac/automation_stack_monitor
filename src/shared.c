@@ -41,6 +41,7 @@ get_ips_that_responded(int *size)
 	const char **keys;
 	char **retval;
 	int i;
+	void *val;
 
 pthread_mutex_lock(&mux);
 	*size = jnx_hash_get_keys(ips_to_macs, &keys);
@@ -49,6 +50,11 @@ pthread_mutex_lock(&mux);
 	{
 		retval[i] = malloc(strlen(keys[i]));
 		strcpy(retval[i], keys[i]);
+
+		// Don't need these any more so free them
+		val = jnx_hash_get(ips_to_macs, keys[i]);
+		free(val);
+		free((char*) keys[i]);
 	}
 
 	free(keys);

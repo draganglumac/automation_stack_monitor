@@ -29,9 +29,11 @@
 #include <errno.h>            // errno, perror()
 
 #include "arp.h"
+#include "../shared.h"
 
-void
-pretty_print_packet(uint8_t *ether_frame, arp_hdr *arphdr);
+void pretty_print_packet(uint8_t *ether_frame, arp_hdr *arphdr);
+char* get_remote_ip_from_arphdr(arp_hdr *arphdr);
+char* get_remote_mac_from_arphdr(arp_hdr *arphdr);
 
 int
 arp_recv ()
@@ -39,9 +41,7 @@ arp_recv ()
 	int i, sd, status;
 	uint8_t *ether_frame;
 	arp_hdr *arphdr;
-
-	// Allocate memory for various arrays.
-	ether_frame = allocate_ustrmem (IP_MAXPACKET);
+	char *ip, *mac;
 
 	// Submit request for a raw socket descriptor.
 	if ((sd = socket (PF_PACKET, SOCK_RAW, htons (ETH_P_ALL))) < 0) {
@@ -49,30 +49,70 @@ arp_recv ()
 		exit (EXIT_FAILURE);
 	}
 
-	// Listen for incoming ethernet frame from socket sd.
-	// We expect an ARP ethernet frame of the form:
-	//     MAC (6 bytes) + MAC (6 bytes) + ethernet type (2 bytes)
-	//     + ethernet data (ARP header) (28 bytes)
-	// Keep at it until we get an ARP reply.
-	arphdr = (arp_hdr *) (ether_frame + 6 + 6 + 2);
-	while (((((ether_frame[12]) << 8) + ether_frame[13]) != ETH_P_ARP) || (ntohs (arphdr->opcode) != ARPOP_REPLY)) {
-		if ((status = recv (sd, ether_frame, IP_MAXPACKET, 0)) < 0) {
-			if (errno == EINTR) {
-				memset (ether_frame, 0, IP_MAXPACKET * sizeof (uint8_t));
-				continue;  // Something weird happened, but let's try again.
-			} else {
-				perror ("recv() failed:");
-				exit (EXIT_FAILURE);
+	while (1)
+	{
+		// Allocate memory for various arrays.
+		ether_frame = allocate_ustrmem (IP_MAXPACKET);
+
+		// Listen for incoming ethernet frame from socket sd.
+		// We expect an ARP ethernet frame of the form:
+		//     MAC (6 bytes) + MAC (6 bytes) + ethernet type (2 bytes)
+		//     + ethernet data (ARP header) (28 bytes)
+		// Keep at it until we get an ARP reply.
+		arphdr = (arp_hdr *) (ether_frame + 6 + 6 + 2);
+		while (((((ether_frame[12]) << 8) + ether_frame[13]) != ETH_P_ARP) || (ntohs (arphdr->opcode) != ARPOP_REPLY)) {
+			if ((status = recv (sd, ether_frame, IP_MAXPACKET, 0)) < 0) {
+				if (errno == EINTR) {
+					memset (ether_frame, 0, IP_MAXPACKET * sizeof (uint8_t));
+					continue;  // Something weird happened, but let's try again.
+				} else {
+					perror ("recv() failed:");
+					exit (EXIT_FAILURE);
+				}
 			}
 		}
+	
+		ip = get_remote_ip_from_arphdr(arphdr);
+		mac = get_remote_mac_from_arphdr(arphdr);
+
+		received_mac_for_ip(ip, mac);
+			
+		free (ether_frame);
 	}
+
 	close (sd);
 
-	pretty_print_packet(ether_frame, arphdr);
-
-	free (ether_frame);
-
 	return (EXIT_SUCCESS);
+}
+
+char*
+get_remote_ip_from_arphdr(arp_hdr *arphdr)
+{
+	// IP address format -> nnn.nnn.nnn.nnn, so at most 15 chars plus NULL byte
+	char *ip = malloc(16 * sizeof(char));
+	sprintf(ip, "%u.%u.%u.%u",
+			arphdr->sender_ip[0], 
+			arphdr->sender_ip[1], 
+			arphdr->sender_ip[2], 
+			arphdr->sender_ip[3]);
+
+	return ip;
+}
+
+char*
+get_remote_mac_from_arphdr(arp_hdr *arphdr)
+{	
+	// MAC address format -> xx:xx:xx:xx:xx:xx, so at most 17 chars plus NULL byte
+	char *mac = malloc(18 * sizeof(char));
+	sprintf (mac, "%02x:%02x:%02x:%02x:%02x:%02x",
+			arphdr->sender_mac[0],
+			arphdr->sender_mac[1],
+			arphdr->sender_mac[2],
+			arphdr->sender_mac[3],
+			arphdr->sender_mac[4],
+			arphdr->sender_mac[5]);
+
+	return mac;
 }
 
 void pretty_print_packet(uint8_t *ether_frame, arp_hdr *arphdr)

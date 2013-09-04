@@ -121,7 +121,11 @@ int main(int argc, char** argv)
 void *
 start_recv_loop(void *data)
 {
+	printf("Starting receive thread.\n");
+	
 	arp_recv();
+	
+	printf("Receive thread completed.\n");
 
 	return NULL;
 }

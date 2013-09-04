@@ -76,6 +76,7 @@ char **get_devices_to_probe(int *num_devices)
 
 	char **temp = malloc(20 * sizeof(char**));
 	int i;
+	*num_devices = 20;
 
 	for (i = 0; i < *num_devices; i++)
 	{
