@@ -215,7 +215,7 @@ poll(char ***devices, int *num_devices, int retries, int timeout)
 		sleep(timeout);
 
 		*devices = update_devices_to_probe(*devices, num_devices);
-		printf("\nAt the end of iteration <%d> new num_devices to probe = %d\n", i, *num_devices);
+		printf("\nAt the end of iteration <%d> new num_devices to probe = %d\n", i + 1, *num_devices);
 	}
 }
 
