@@ -106,6 +106,8 @@ char **get_devices_to_probe(int *num_devices)
 		strcpy(ips[i], keys[i]);
 	}
 
+	free(keys);
+
 	return ips;
 }
 
@@ -124,6 +126,8 @@ char **get_machines_to_probe(int *num_machines)
 		ips[i] = malloc(strlen(keys[i]));
 		strcpy(ips[i], keys[i]);
 	}
+
+	free(keys);
 
 	return ips;
 }

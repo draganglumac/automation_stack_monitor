@@ -48,6 +48,7 @@ void usage()
 }
 int parse_conf_file(char *path, jnx_hashmap **config)
 {
+	jnx_file_kvp_node *temp;
 	jnx_file_kvp_node *head = jnx_file_read_keyvaluepairs(path,"=");
 	if(!head) { return 1; }
 	(*config) = jnx_hash_init(1024);
@@ -56,8 +57,9 @@ int parse_conf_file(char *path, jnx_hashmap **config)
 	{
 		jnx_hash_put((*config),head->key,head->value);
 		printf("Inserted %s %s into configuration\n",head->key,head->value);
-		free(head);	
+		temp = head;
 		head = head->next;
+		free(head);	
 	}
 	return 0;
 }
@@ -119,6 +121,10 @@ int main(int argc, char** argv)
 		printf("All devices responded with MAC addresses.\n");
 	}
 
+	for (i = 0; i < num_devices; i++)
+		free(devices[i]);
+	free(devices);
+
 	return 0;
 }
 
@@ -173,6 +179,7 @@ update_devices_to_probe(char **devices, int *num_devices)
 			if (strcmp(devices[i], seen[j]) == 0)
 			{
 				found = 1;
+				free(devices[i]);
 				break;
 			}
 		}
@@ -186,6 +193,9 @@ update_devices_to_probe(char **devices, int *num_devices)
 	}
 
 	free(devices);
+	for (i = 0; i < seen_size; i++)
+		free(seen[i]);
+	free(seen);
 
 	*num_devices = new_size;
 	return temp;
