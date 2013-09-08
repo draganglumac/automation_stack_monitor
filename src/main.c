@@ -24,7 +24,7 @@
 #include <unistd.h>
 
 #include "arp/arp.h"
-#include "database/sql_interface_layer.h"
+#include "monitor_db_api.h"
 #include "shared.h"
 
 #define RETRIES 5

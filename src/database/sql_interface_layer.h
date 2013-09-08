@@ -21,18 +21,15 @@
 #include "results_bucket.h"
 #include <jnxc_headers/jnxhash.h>
 
-#define GET_JOB_TRIGGER_TIME "USE AUTOMATION; select trigger_time from jobs where id='%s';"
-#define GET_CANDIDATE_JOBS "USE AUTOMATION; call get_candidate_jobs();"
-#define GET_MACHINE_FROM_ID "USE AUTOMATION; select * from machines where id=%d;"
-#define SET_JOB_STATUS "USE AUTOMATION; call set_job_status_from_id('%s','%s');"
-#define SET_MACHINE_STATUS "USE AUTOMATION; update machines set status='%s' where ip_address='%s';"
-#define SET_ALL_MACHINES_OFFLINE "USE AUTOMATION; update machines set status='OFFLINE' where status != 'OFFLINE';"
-#define UPDATE_JOB_INTERVAL "USE AUTOMATION; call update_job_run_time('%s');"
+#define GET_JOB_TRIGGER_TIME "select trigger_time from jobs where id='%s';"
+#define GET_CANDIDATE_JOBS "call get_candidate_jobs();"
+#define GET_MACHINE_FROM_ID "select * from machines where id=%d;"
+#define SET_JOB_STATUS "call set_job_status_from_id('%s','%s');"
+#define SET_MACHINE_STATUS "update machines set status='%s' where ip_address='%s';"
+#define SET_ALL_MACHINES_OFFLINE "update machines set status='OFFLINE' where status != 'OFFLINE';"
+#define UPDATE_JOB_INTERVAL "call update_job_run_time('%s');"
 
 extern jnx_hashmap *config;
 int sql_setup_credentials(void);
 int sql_send_query(mysql_result_bucket **results_bucket, const char *querytemplate, ...);
-char **get_devices_to_probe(int *num_devices);
-void update_non_responsive_devices(char **devices, int num_devices);
-
 #endif
