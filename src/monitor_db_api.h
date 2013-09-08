@@ -21,6 +21,7 @@
 #include "database/sql_interface_layer.h"
 
 char **get_devices_to_probe(int *num_devices);
+char **get_machines_to_probe(int *num_machines);
 void update_non_responsive_devices(char **devices, int num_devices);
 
 #endif // __DB_API_H__

@@ -41,7 +41,7 @@ int sql_send_query(mysql_result_bucket **results_bucket, const char *querytempla
 {
 	char constructed_query[1024];
 	int offset;
-	vsprintf(constructed_query, "USE %s; ", jnx_hash_get(config, "SQLDB"));
+	sprintf(constructed_query, "USE %s; ", jnx_hash_get(config, "SQLDB"));
 	offset = strlen(constructed_query);
 
 	va_list ap;
