@@ -70,6 +70,32 @@ parse_conf_file(char *path, jnx_hashmap **config)
 	return 0;
 }
 
+char* check_program_arguments(int argc, char **argv)
+{
+	int c;
+	char *configuration = NULL;
+
+	while((c = getopt(argc, argv,"c:")) != -1)
+	{
+		switch(c)
+		{
+			case 'c':
+				configuration = optarg;
+				break;
+			case '?':
+				usage();
+				break;
+		}
+	}
+
+	if(!configuration)
+	{
+		usage();
+	}
+
+	return configuration;
+}
+
 void *start_recv_loop(void *data);
 void *start_send_loop(void *data);
 char **update_devices_to_probe(char **devices, int *num_devices);
@@ -85,22 +111,7 @@ main(int argc, char** argv)
 	pthread_t recv_thread;
 	char **devices, **machines;
 
-	while((c = getopt(argc, argv,"c:")) != -1)
-	{
-		switch(c)
-		{
-			case 'c':
-				configuration = optarg;
-				break;
-			case '?':
-				usage();
-				break;
-		}
-	}
-	if(!configuration)
-	{
-		usage();
-	}
+	configuration = check_program_arguments(argc, argv);
 	if(parse_conf_file(configuration,&config) != 0)
 	{
 		usage();
