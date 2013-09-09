@@ -59,7 +59,7 @@ int parse_conf_file(char *path, jnx_hashmap **config)
 		printf("Inserted %s %s into configuration\n",head->key,head->value);
 		temp = head;
 		head = head->next;
-		free(head);	
+		free(temp);	
 	}
 	return 0;
 }
