@@ -25,6 +25,21 @@
 #define GET_DEVICE_IPS "select id, ip from devices where ip is not null;"
 #define GET_MACHINE_IPS "select id, ip from machines where ip is not null;"
 
+#define GET_STATS_FOR_DEVICE "select * from device_stats where device_id = %s;"
+#define GET_STATS_FOR_MACHINE "select * from machine_stats where machine_id = %s;"
+
+#define INSERT_FIRST_SUCCESSFUL_DEVICE_STAT "insert into device_stats(device_id,polltime,ping_success,mac_address,firstpoll) values (%s,%s,true,'%s',%s);"
+#define INSERT_FIRST_FAILED_DEVICE_STAT "insert into device_stats(device_id,polltime,ping_success,firstpoll) values (%s,%s,false,%s);"
+#define INSERT_NEW_SUCCESSFUL_DEVICE_STAT "insert into device_stats(device_id,polltime,ping_success,mac_address) values (%s,%s,true,'%s');"
+#define INSERT_NEW_FAILED_DEVICE_STAT "insert into device_stats(device_id,polltime,ping_success) values (%s,%s,false);"
+#define UPDATE_DEVICE_STAT "update device_stats set polltime = %s where id = %s;"
+
+#define INSERT_FIRST_SUCCESSFUL_MACHINE_STAT "insert into machine_stats(machine_id,polltime,ping_success,mac_address,firstpoll) values (%s,%s,true,'%s',%s);"
+#define INSERT_FIRST_FAILED_MACHINE_STAT "insert into machine_stats(machine_id,polltime,ping_success,firstpoll) values (%s,%s,false,%s);"
+#define INSERT_NEW_SUCCESSFUL_MACHINE_STAT "insert into machine_stats(machine_id,polltime,ping_success,mac_address) values (%s,%s,true,'%s');"
+#define INSERT_NEW_FAILED_MACHINE_STAT "insert into machine_stats(machine_id,polltime,ping_success) values (%s,%s,false);"
+#define UPDATE_MACHINE_STAT "update machine_stats set polltime = %s where id = %s;"
+
 static jnx_hashmap *ip_ids = NULL;
 
 void free_ip_ids()
