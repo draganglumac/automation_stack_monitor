@@ -76,7 +76,6 @@ arp_recv ()
 		mac = get_remote_mac_from_arphdr(arphdr);
 
 		received_mac_for_ip(ip, mac);
-		printf("MAC[%s] = %s\n", ip, mac);
 
 		free (ether_frame);
 	}
@@ -157,5 +156,3 @@ void pretty_print_packet(uint8_t *ether_frame, arp_hdr *arphdr)
 			arphdr->target_ip[0], arphdr->target_ip[1], arphdr->target_ip[2], arphdr->target_ip[3]);
 
 }
-
-

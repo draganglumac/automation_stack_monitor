@@ -82,7 +82,6 @@ void get_ip_ids_for_query(const char *query)
 		{
 			id = copy_string(rows[i][0]);
 			ip = copy_string(rows[i][1]);
-			printf("id = %s; ip = %s\n", id, ip);
 			jnx_hash_put(ip_ids, ip, (void *) id);	
 		}
 	}
@@ -133,13 +132,21 @@ char **get_machines_to_probe(int *num_machines)
 }
 
 void
-update_non_responsive_devices(char **devices, int num_devices)
+update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive, int num_unersponsive)
 {
-	int i;
-
-	for (i = 0; i < num_devices; i++)
+	const char **ips;
+	int i, size;
+	
+	size = jnx_hash_get_keys(ip_macs, &ips);
+	printf("Devices that responded with mac addresses:\n");
+	for (i = 0; i < size; i++)
 	{
-		printf("IP %s is not responding.\n", devices[i]);
+		if (jnx_hash_get(ip_ids, ips[i]))
+			printf("%02s -> MAC[%s]=%s\n", jnx_hash_get(ip_ids, ips[i]), ips[i], jnx_hash_get(ip_macs, ips[i]));
 	}
-}
 
+	printf("\n");
+	printf("Devices that did not respond during probing cycle:\n");
+	for (i = 0; i < num_unersponsive; i++)
+		printf("%02s -> %s\n", jnx_hash_get(ip_ids, unresponsive[i]), unresponsive[i]);
+}

@@ -22,6 +22,7 @@
 #include <jnxc_headers/jnxfile.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "arp/arp.h"
 #include "monitor_db_api.h"
@@ -32,6 +33,8 @@
 #define AGGR_RETRIES 5
 #define AGGR_TIMEOUT 5
 
+#define PROBE_TIMEOUT 300
+
 jnx_hashmap *config = NULL;
 
 typedef struct 
@@ -41,12 +44,15 @@ typedef struct
 }
 array_size;
 
-void usage()
+void
+usage()
 {
 	printf("Please provide -c [configuration]\n");
 	exit(0);
 }
-int parse_conf_file(char *path, jnx_hashmap **config)
+
+int
+parse_conf_file(char *path, jnx_hashmap **config)
 {
 	jnx_file_kvp_node *temp;
 	jnx_file_kvp_node *head = jnx_file_read_keyvaluepairs(path,"=");
@@ -70,9 +76,11 @@ char **update_devices_to_probe(char **devices, int *num_devices);
 void poll_normally(char ***devices, int *num_devices);
 void poll_aggressively(char ***devices, int *num_devices);
 
-int main(int argc, char** argv)
+int
+main(int argc, char** argv)
 {
-	int c, i, num_devices, num_machines;
+	int c, i, num_devices, num_machines, probe_sleep;
+	time_t start_time;
 	char *configuration = NULL;
 	pthread_t recv_thread;
 	char **devices, **machines;
@@ -98,32 +106,40 @@ int main(int argc, char** argv)
 		usage();
 	}
 
+	// Reset the probe data structures in preparation for the first poll cycle
+	reset_probe();
+
 	pthread_create(&recv_thread, NULL, start_recv_loop, NULL);
 	sleep(1);
 
-	devices = get_devices_to_probe(&num_devices);
-
-	printf("Starting normal polling cycle.\n");	
-	poll_normally(&devices, &num_devices);
-
-	if (num_devices > 0)
+	while(1)
 	{
-		printf("Starting aggressive polling cycle to try to wake up sleepy devices.\n");
-		poll_aggressively(&devices, &num_devices);
-	}
+		start_time = time(0);
 
-	if (num_devices > 0)
-	{
-		update_non_responsive_devices(devices, num_devices);
-	}
-	else
-	{
-		printf("All devices responded with MAC addresses.\n");
-	}
+		devices = get_devices_to_probe(&num_devices);
 
-	for (i = 0; i < num_devices; i++)
-		free(devices[i]);
-	free(devices);
+		printf("Starting normal polling cycle.\n");	
+		poll_normally(&devices, &num_devices);
+
+		if (num_devices > 0)
+		{
+			printf("Starting aggressive polling cycle to try to wake up sleepy devices.\n");
+			poll_aggressively(&devices, &num_devices);
+		}
+
+		update_db_after_probing(start_time, devices, num_devices);
+
+		for (i = 0; i < num_devices; i++)
+			free(devices[i]);
+		free(devices);
+
+		// Reset the probe data structures for the next polling cycle
+		reset_probe();
+
+		probe_sleep = PROBE_TIMEOUT - (int)(time(0) - start_time);
+		printf("Sleeping for %u till the next probe cycle.\n", probe_sleep);
+		sleep(probe_sleep);	
+	}
 
 	return 0;
 }
@@ -132,9 +148,9 @@ void *
 start_recv_loop(void *data)
 {
 	printf("Starting receive thread.\n");
-	
+
 	arp_recv();
-	
+
 	printf("Receive thread completed.\n");
 
 	return NULL;
@@ -150,7 +166,6 @@ start_send_loop(void *data)
 
 	for (i = 0; i < size; i++)
 	{
-		printf("Probing %s\n", ips[i]);
 		arp_send(ips[i]);
 	}
 
@@ -187,7 +202,6 @@ update_devices_to_probe(char **devices, int *num_devices)
 		if (!found)
 		{
 			temp[new_size] = devices[i];
-			printf("Retrying %s\n", temp[new_size]);
 			new_size++;
 		}
 	}
@@ -204,28 +218,30 @@ update_devices_to_probe(char **devices, int *num_devices)
 void
 poll(char ***devices, int *num_devices, int retries, int timeout)
 {
-	int i;
+	int i, sleep_period;
 	array_size data;
 	pthread_t recv_thread, send_thread;
-	
+	time_t start_time;
+
 	for (i = 0; i < retries; i++)
 	{
 		if (*num_devices <= 0)
 		{
-			printf("All devices responded.\n");
 			break;
 		}
+
+		start_time = time(0);
 
 		data.array = *devices;
 		data.size = *num_devices;
 
 		pthread_create(&send_thread, NULL, start_send_loop, (void*) &data);
 		pthread_join(send_thread, NULL);
-		
-		sleep(timeout);
+
+		sleep_period = timeout - (int)(time(0) - start_time);
+		sleep(sleep_period);
 
 		*devices = update_devices_to_probe(*devices, num_devices);
-		printf("\nAt the end of iteration <%d> new num_devices to probe = %d\n", i + 1, *num_devices);
 	}
 }
 

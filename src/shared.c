@@ -21,8 +21,59 @@
 #include <pthread.h>
 #include <string.h>
 
+#include "monitor_db_api.h"
+
 jnx_hashmap *ips_to_macs = NULL;
 pthread_mutex_t mux = PTHREAD_MUTEX_INITIALIZER;
+
+void
+pretty_print(jnx_hashmap *hm)
+{
+	const char **keys;
+	int size = jnx_hash_get_keys(hm, &keys);
+	int i;
+
+	for (i = 0; i < size; i++)
+	{
+		printf("%s=%s\n", keys[i], (char *)jnx_hash_get(hm, keys[i]));
+	}
+}
+
+void
+clear_ips_to_mac()
+{
+	const char **keys;
+	int i, size;
+	void *val;
+
+	if (ips_to_macs == NULL)
+		return;
+
+	size = jnx_hash_get_keys(ips_to_macs, &keys);
+	for (i = 0; i < size; i++)
+	{
+		val = jnx_hash_get(ips_to_macs, keys[i]);
+		free(val);
+		free((char*) keys[i]);
+	}
+	free(keys);
+	jnx_hash_delete(ips_to_macs);
+
+	ips_to_macs = NULL;
+}
+
+void
+reset_probe()
+{
+pthread_mutex_lock(&mux);
+	if (ips_to_macs != NULL)
+	{
+		clear_ips_to_mac();
+	}
+
+	ips_to_macs = jnx_hash_init(1024);
+pthread_mutex_unlock(&mux);
+}
 
 void
 received_mac_for_ip(char *ip, char *mac)
@@ -31,6 +82,9 @@ pthread_mutex_lock(&mux);
 	if (ips_to_macs == NULL)
 		ips_to_macs = jnx_hash_init(1024);
 
+	void *prev_val = jnx_hash_get(ips_to_macs, ip);
+	if (prev_val != NULL)
+		free(prev_val);
 	jnx_hash_put(ips_to_macs, ip, mac);
 pthread_mutex_unlock(&mux);
 }
@@ -57,17 +111,16 @@ pthread_mutex_unlock(&mux);
 	{
 		retval[i] = malloc(strlen(keys[i]));
 		strcpy(retval[i], keys[i]);
-
-		// Don't need these any more so free them
-		val = jnx_hash_get(ips_to_macs, keys[i]);
-		free(val);
-		free((char*) keys[i]);
 	}
-
-	free(keys);
-	jnx_hash_delete(ips_to_macs);
-	ips_to_macs = NULL;
 pthread_mutex_unlock(&mux);
 
 	return retval;
+}
+
+void
+update_db_after_probing(time_t poll_time, char **unresponsive, int num_unresponsive)
+{
+pthread_mutex_lock(&mux);
+	update_device_stats(poll_time, ips_to_macs, unresponsive, num_unresponsive);
+pthread_mutex_unlock(&mux);
 }

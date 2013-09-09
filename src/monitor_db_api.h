@@ -22,6 +22,8 @@
 
 char **get_devices_to_probe(int *num_devices);
 char **get_machines_to_probe(int *num_machines);
-void update_non_responsive_devices(char **devices, int num_devices);
+
+void update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive, int num_unersponsive);
+void update_machine_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive, int num_unersponsive);
 
 #endif // __DB_API_H__
