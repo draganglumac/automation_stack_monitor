@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <jnxc_headers/jnxhash.h>
+#include <jnxc_headers/jnxstring.h>
 
 #include "monitor_db_api.h"
 
@@ -33,12 +34,14 @@
 #define INSERT_NEW_SUCCESSFUL_DEVICE_STAT "insert into device_stats(device_id,polltime,ping_success,mac_address) values (%s,%s,true,'%s');"
 #define INSERT_NEW_FAILED_DEVICE_STAT "insert into device_stats(device_id,polltime,ping_success) values (%s,%s,false);"
 #define UPDATE_DEVICE_STAT "update device_stats set polltime = %s where id = %s;"
+#define UPDATE_DEVICE_STAT_MAC "update device_stats set polltime = %s, mac_address = '%s' where id = %s;"
 
 #define INSERT_FIRST_SUCCESSFUL_MACHINE_STAT "insert into machine_stats(machine_id,polltime,ping_success,mac_address,firstpoll) values (%s,%s,true,'%s',%s);"
 #define INSERT_FIRST_FAILED_MACHINE_STAT "insert into machine_stats(machine_id,polltime,ping_success,firstpoll) values (%s,%s,false,%s);"
 #define INSERT_NEW_SUCCESSFUL_MACHINE_STAT "insert into machine_stats(machine_id,polltime,ping_success,mac_address) values (%s,%s,true,'%s');"
 #define INSERT_NEW_FAILED_MACHINE_STAT "insert into machine_stats(machine_id,polltime,ping_success) values (%s,%s,false);"
 #define UPDATE_MACHINE_STAT "update machine_stats set polltime = %s where id = %s;"
+#define UPDATE_MACHINE_STAT_MAC "update machine_stats set polltime = %s, mac_address = '%s' where id = %s;"
 
 static jnx_hashmap *ip_ids = NULL;
 
@@ -146,22 +149,83 @@ char **get_machines_to_probe(int *num_machines)
 	return ips;
 }
 
+int
+get_last_stat_for_device(char *device_id, char **id, int *ping_success)
+{
+	char *ip;
+	int i, row_count;
+	mysql_result_bucket *results;
+	MYSQL_ROW *rows;
+
+	sql_send_query(&results, GET_STATS_FOR_DEVICE, device_id);
+	row_count = results->row_count;
+	rows = results->rows;
+
+	if (row_count == 0)
+		return 0;
+
+	*id = copy_string(rows[row_count - 1][0]);
+	*ping_success = atoi(rows[row_count - 1][3]);
+	
+	remove_mysql_result_bucket(&results);	
+	
+	return row_count;
+}
+
 void
 update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive, int num_unersponsive)
 {
 	const char **ips;
-	int i, size;
-	
+	int i, size, ping_success;
+	char *stat_id, *device_id, *mac_address;
+	mysql_result_bucket *results;
+
 	size = jnx_hash_get_keys(ip_macs, &ips);
 	printf("Devices that responded with mac addresses:\n");
 	for (i = 0; i < size; i++)
 	{
-		if (jnx_hash_get(ip_ids, ips[i]))
-			printf("%02s -> MAC[%s]=%s\n", jnx_hash_get(ip_ids, ips[i]), ips[i], jnx_hash_get(ip_macs, ips[i]));
+		device_id = jnx_hash_get(ip_ids, ips[i]);
+		if (device_id)
+		{
+			mac_address = (char *) jnx_hash_get(ip_macs, ips[i]);
+			printf("%02s -> MAC[%s]=%s\n", device_id, ips[i], jnx_hash_get(ip_macs, ips[i]));
+			if (0 < get_last_stat_for_device(device_id, &stat_id, &ping_success))
+			{
+				if (ping_success)
+					sql_send_query(&results, UPDATE_DEVICE_STAT_MAC, jnx_string_itos(poll_time), mac_address, stat_id);
+				else
+					sql_send_query(&results, INSERT_NEW_SUCCESSFUL_DEVICE_STAT, device_id, jnx_string_itos(poll_time), mac_address);
+
+				free(stat_id);	
+			}
+			else
+			{
+				sql_send_query(&results, INSERT_FIRST_SUCCESSFUL_DEVICE_STAT, device_id, jnx_string_itos(poll_time), mac_address, jnx_string_itos(poll_time));
+			}
+		}
 	}
 
 	printf("\n");
 	printf("Devices that did not respond during probing cycle:\n");
 	for (i = 0; i < num_unersponsive; i++)
-		printf("%02s -> %s\n", jnx_hash_get(ip_ids, unresponsive[i]), unresponsive[i]);
+	{
+		device_id = (char *) jnx_hash_get(ip_ids, unresponsive[i]);
+		printf("%02s -> %s\n", device_id, unresponsive[i]);
+		if (device_id)
+		{
+			if (0 < get_last_stat_for_device(device_id, &stat_id, &ping_success))
+			{
+				if (ping_success)
+					sql_send_query(&results, INSERT_NEW_FAILED_DEVICE_STAT, device_id, jnx_string_itos(poll_time));
+				else
+					sql_send_query(&results, UPDATE_DEVICE_STAT, jnx_string_itos(poll_time), stat_id);
+
+				free(stat_id);
+			}
+			else
+			{
+				sql_send_query(&results, INSERT_FIRST_FAILED_DEVICE_STAT, device_id, jnx_string_itos(poll_time), jnx_string_itos(poll_time));
+			}
+		}
+	}
 }
