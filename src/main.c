@@ -33,7 +33,8 @@
 #define AGGR_RETRIES 5
 #define AGGR_TIMEOUT 5
 
-#define PROBE_TIMEOUT 300
+//#define PROBE_TIMEOUT 300
+#define PROBE_TIMEOUT 120
 
 jnx_hashmap *config = NULL;
 
@@ -105,7 +106,7 @@ void poll_aggressively(char ***devices, int *num_devices);
 int
 main(int argc, char** argv)
 {
-	int c, i, num_devices, num_machines, probe_sleep;
+	int c, i, j, num_devices, num_machines, probe_sleep;
 	time_t start_time;
 	char *configuration = NULL;
 	pthread_t recv_thread;

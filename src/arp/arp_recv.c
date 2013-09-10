@@ -76,7 +76,8 @@ arp_recv ()
 		mac = get_remote_mac_from_arphdr(arphdr);
 
 		received_mac_for_ip(ip, mac);
-
+		
+		free(ip);
 		free (ether_frame);
 	}
 

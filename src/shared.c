@@ -44,7 +44,6 @@ clear_ips_to_mac()
 {
 	const char **keys;
 	int i, size;
-	void *val;
 
 	if (ips_to_macs == NULL)
 		return;
@@ -52,8 +51,7 @@ clear_ips_to_mac()
 	size = jnx_hash_get_keys(ips_to_macs, &keys);
 	for (i = 0; i < size; i++)
 	{
-		val = jnx_hash_get(ips_to_macs, keys[i]);
-		free(val);
+		free(jnx_hash_delete_value(ips_to_macs,(char*) keys[i]));
 		free((char*) keys[i]);
 	}
 	free(keys);
@@ -114,6 +112,7 @@ pthread_mutex_unlock(&mux);
 	}
 pthread_mutex_unlock(&mux);
 
+	free(keys);
 	return retval;
 }
 

@@ -20,6 +20,7 @@
 #include <string.h>
 #include <jnxc_headers/jnxhash.h>
 #include <jnxc_headers/jnxstring.h>
+#include <jnxc_headers/jnxterm.h>
 
 #include "monitor_db_api.h"
 
@@ -56,7 +57,7 @@ void free_ip_ids()
 
 		for (i = 0; i < num_entries; i++)
 		{
-			free(jnx_hash_get(ip_ids, keys[i]));
+			free(jnx_hash_delete_value(ip_ids, (char*) keys[i]));
 			free((char *) keys[i]);
 		}
 
@@ -99,7 +100,7 @@ void get_ip_ids_for_query(const char *query)
 		for(i = 0; i < row_count; i++)
 		{
 			id = copy_string(rows[i][0]);
-			ip = copy_string(rows[i][1]);
+			ip = rows[i][1];
 			jnx_hash_put(ip_ids, ip, (void *) id);	
 		}
 	}
@@ -187,45 +188,54 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 		device_id = jnx_hash_get(ip_ids, ips[i]);
 		if (device_id)
 		{
+			char *pt = jnx_string_itos(poll_time);
 			mac_address = (char *) jnx_hash_get(ip_macs, ips[i]);
-			printf("%02s -> MAC[%s]=%s\n", device_id, ips[i], jnx_hash_get(ip_macs, ips[i]));
+			jnx_term_printf_in_color(JNX_COL_GREEN, "%02s -> MAC[%s]=%s\n", device_id, ips[i], jnx_hash_get(ip_macs, ips[i]));
 			if (0 < get_last_stat_for_device(device_id, &stat_id, &ping_success))
 			{
 				if (ping_success)
-					sql_send_query(&results, UPDATE_DEVICE_STAT_MAC, jnx_string_itos(poll_time), mac_address, stat_id);
+					sql_send_query(&results, UPDATE_DEVICE_STAT_MAC, pt, mac_address, stat_id);
 				else
-					sql_send_query(&results, INSERT_NEW_SUCCESSFUL_DEVICE_STAT, device_id, jnx_string_itos(poll_time), mac_address);
+					sql_send_query(&results, INSERT_NEW_SUCCESSFUL_DEVICE_STAT, device_id, pt, mac_address);
 
 				free(stat_id);	
 			}
 			else
 			{
-				sql_send_query(&results, INSERT_FIRST_SUCCESSFUL_DEVICE_STAT, device_id, jnx_string_itos(poll_time), mac_address, jnx_string_itos(poll_time));
+				sql_send_query(&results, INSERT_FIRST_SUCCESSFUL_DEVICE_STAT, device_id, pt, mac_address, pt);
 			}
+
+			free(pt);
 		}
 	}
+	free(ips);
 
 	printf("\n");
 	printf("Devices that did not respond during probing cycle:\n");
 	for (i = 0; i < num_unersponsive; i++)
 	{
 		device_id = (char *) jnx_hash_get(ip_ids, unresponsive[i]);
-		printf("%02s -> %s\n", device_id, unresponsive[i]);
+		jnx_term_printf_in_color(JNX_COL_RED, "%02s -> %s\n", device_id, unresponsive[i]);
 		if (device_id)
 		{
+			char *pt = jnx_string_itos(poll_time);
+
 			if (0 < get_last_stat_for_device(device_id, &stat_id, &ping_success))
 			{
+
 				if (ping_success)
-					sql_send_query(&results, INSERT_NEW_FAILED_DEVICE_STAT, device_id, jnx_string_itos(poll_time));
+					sql_send_query(&results, INSERT_NEW_FAILED_DEVICE_STAT, device_id, pt);
 				else
-					sql_send_query(&results, UPDATE_DEVICE_STAT, jnx_string_itos(poll_time), stat_id);
+					sql_send_query(&results, UPDATE_DEVICE_STAT, pt, stat_id);
 
 				free(stat_id);
 			}
 			else
 			{
-				sql_send_query(&results, INSERT_FIRST_FAILED_DEVICE_STAT, device_id, jnx_string_itos(poll_time), jnx_string_itos(poll_time));
+				sql_send_query(&results, INSERT_FIRST_FAILED_DEVICE_STAT, device_id, pt, pt);
 			}
+
+			free(pt);
 		}
 	}
 }
