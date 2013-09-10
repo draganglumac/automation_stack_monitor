@@ -33,8 +33,7 @@
 #define AGGR_RETRIES 5
 #define AGGR_TIMEOUT 5
 
-//#define PROBE_TIMEOUT 300
-#define PROBE_TIMEOUT 120
+#define PROBE_TIMEOUT 300
 
 jnx_hashmap *config = NULL;
 
