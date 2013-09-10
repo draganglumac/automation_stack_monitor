@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <jnxc_headers/jnxhash.h>
 #include <jnxc_headers/jnxstring.h>
 #include <jnxc_headers/jnxterm.h>
@@ -26,6 +27,7 @@
 
 #define GET_DEVICE_IPS "select id, ip from devices where ip is not null;"
 #define GET_MACHINE_IPS "select id, ip from machines where ip is not null;"
+#define GET_DEVICE_INFO "select d.name, m.call_sign as machine from devices d, machines m, connected_devices cd where d.id = %s and d.id = cd.device_id and m.id = cd.machine_id;"
 
 #define GET_STATS_FOR_DEVICE "select * from device_stats where device_id = %s;"
 #define GET_STATS_FOR_MACHINE "select * from machine_stats where machine_id = %s;"
@@ -101,7 +103,7 @@ void get_ip_ids_for_query(const char *query)
 		{
 			id = copy_string(rows[i][0]);
 			ip = rows[i][1];
-			jnx_hash_put(ip_ids, ip, (void *) id);	
+			jnx_hash_put(ip_ids, ip, (void *) id);
 		}
 	}
 
@@ -180,9 +182,16 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 	int i, size, ping_success;
 	char *stat_id, *device_id, *mac_address;
 	mysql_result_bucket *results;
-
+	
 	size = jnx_hash_get_keys(ip_macs, &ips);
+	printf("\033[2J");
+	printf("\033[0;0H");
+	char *datetime = ctime(&poll_time);
+	printf("Last probed on %s\n", datetime);
 	printf("Devices that responded with mac addresses:\n");
+	printf("\n");
+	jnx_term_printf_in_color(JNX_COL_GREEN, "id | device_name                    | node_name  | ip_address  | mac_address       |\n");
+	jnx_term_printf_in_color(JNX_COL_GREEN, "---+--------------------------------+------------+-------------+-------------------+\n");	
 	for (i = 0; i < size; i++)
 	{
 		device_id = jnx_hash_get(ip_ids, ips[i]);
@@ -190,7 +199,13 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 		{
 			char *pt = jnx_string_itos(poll_time);
 			mac_address = (char *) jnx_hash_get(ip_macs, ips[i]);
-			jnx_term_printf_in_color(JNX_COL_GREEN, "%02s -> MAC[%s]=%s\n", device_id, ips[i], jnx_hash_get(ip_macs, ips[i]));
+			
+			sql_send_query(&results, GET_DEVICE_INFO, device_id);
+			char *device_name = results->rows[0][0];
+			char *node_name = results->rows[0][1];
+			jnx_term_printf_in_color(JNX_COL_GREEN, "%02s | %-30s | %-10s | %s | %s |\n", device_id, device_name, node_name, ips[i], jnx_hash_get(ip_macs, ips[i]));
+			remove_mysql_result_bucket(&results);
+
 			if (0 < get_last_stat_for_device(device_id, &stat_id, &ping_success))
 			{
 				if (ping_success)
@@ -212,13 +227,21 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 
 	printf("\n");
 	printf("Devices that did not respond during probing cycle:\n");
+	printf("\n");
+	jnx_term_printf_in_color(JNX_COL_RED, "id | device_name                    | node_name  | ip_address  |\n");
+	jnx_term_printf_in_color(JNX_COL_RED, "---+--------------------------------+------------+-------------+\n");	
 	for (i = 0; i < num_unersponsive; i++)
 	{
 		device_id = (char *) jnx_hash_get(ip_ids, unresponsive[i]);
-		jnx_term_printf_in_color(JNX_COL_RED, "%02s -> %s\n", device_id, unresponsive[i]);
 		if (device_id)
 		{
 			char *pt = jnx_string_itos(poll_time);
+			
+			sql_send_query(&results, GET_DEVICE_INFO, device_id);
+			char *device_name = results->rows[0][0];
+			char *node_name = results->rows[0][1];
+			jnx_term_printf_in_color(JNX_COL_RED, "%02s | %-30s | %-10s | %s |\n", device_id, device_name, node_name, ips[i]);
+			remove_mysql_result_bucket(&results);
 
 			if (0 < get_last_stat_for_device(device_id, &stat_id, &ping_success))
 			{
@@ -238,4 +261,5 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 			free(pt);
 		}
 	}
+	printf("\n");
 }

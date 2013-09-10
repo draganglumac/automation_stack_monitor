@@ -130,12 +130,12 @@ main(int argc, char** argv)
 
 		devices = get_devices_to_probe(&num_devices);
 
-		printf("Starting normal polling cycle.\n");	
+		printf("Starting normal probe cycle.\n");	
 		poll_normally(&devices, &num_devices);
 
 		if (num_devices > 0)
 		{
-			printf("Starting aggressive polling cycle to try to wake up sleepy devices.\n");
+			printf("Starting aggressive probe cycle to try to wake up sleepy devices.\n");
 			poll_aggressively(&devices, &num_devices);
 		}
 
@@ -149,7 +149,7 @@ main(int argc, char** argv)
 		reset_probe();
 
 		probe_sleep = PROBE_TIMEOUT - (int)(time(0) - start_time);
-		printf("Sleeping for %u till the next probe cycle.\n", probe_sleep);
+		printf("Sleeping for %um %us until the next probe cycle.\n", probe_sleep / 60, probe_sleep % 60);
 		sleep(probe_sleep);	
 	}
 
