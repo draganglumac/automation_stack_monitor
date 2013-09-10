@@ -105,16 +105,26 @@ void poll_aggressively(char ***devices, int *num_devices);
 int
 main(int argc, char** argv)
 {
-	int c, i, j, num_devices, num_machines, probe_sleep;
+	int c, i, num_devices, num_machines, probe_timeout, probe_sleep;
 	time_t start_time;
 	char *configuration = NULL;
 	pthread_t recv_thread;
 	char **devices, **machines;
-
 	configuration = check_program_arguments(argc, argv);
 	if(parse_conf_file(configuration,&config) != 0)
 	{
 		usage();
+	}
+
+	char *val = (char*) jnx_hash_get(config, "PROBE_TIMEOUT");
+	if (val)
+	{
+		probe_timeout = atoi(val);
+		free(val);
+	}
+	else
+	{
+		probe_timeout = PROBE_TIMEOUT;
 	}
 
 	// Reset the probe data structures in preparation for the first poll cycle
@@ -129,6 +139,7 @@ main(int argc, char** argv)
 
 		devices = get_devices_to_probe(&num_devices);
 
+		printf("%s\n", ctime(&start_time));
 		printf("Starting normal probe cycle.\n");	
 		poll_normally(&devices, &num_devices);
 
@@ -147,8 +158,8 @@ main(int argc, char** argv)
 		// Reset the probe data structures for the next polling cycle
 		reset_probe();
 
-		probe_sleep = PROBE_TIMEOUT - (int)(time(0) - start_time);
-		printf("Sleeping for %um %us until the next probe cycle.\n", probe_sleep / 60, probe_sleep % 60);
+		probe_sleep = probe_timeout - (int)(time(0) - start_time);
+		printf("[DEBUG] Sleeping for %um %us until the next probe cycle.\n", probe_sleep / 60, probe_sleep % 60);
 		sleep(probe_sleep);	
 	}
 
@@ -158,7 +169,7 @@ main(int argc, char** argv)
 void *
 start_recv_loop(void *data)
 {
-	printf("Starting receive thread.\n");
+	printf("Starting receive thread - listening for ARP responses.\n");
 
 	arp_recv();
 

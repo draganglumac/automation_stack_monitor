@@ -179,7 +179,7 @@ void
 update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive, int num_unersponsive)
 {
 	const char **ips;
-	int i, size, ping_success;
+	int i, hr, size, ping_success;
 	char *stat_id, *device_id, *mac_address;
 	mysql_result_bucket *results;
 	
@@ -191,8 +191,8 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 	printf("Devices that responded with mac addresses:\n");
 	printf("\n");
 	jnx_term_printf_in_color(JNX_COL_GREEN, "id | device_name                    | node_name  | ip_address  | mac_address       |\n");
-	jnx_term_printf_in_color(JNX_COL_GREEN, "---+--------------------------------+------------+-------------+-------------------+\n");	
-	for (i = 0; i < size; i++)
+	jnx_term_printf_in_color(JNX_COL_GREEN, "---+--------------------------------+------------+-------------+-------------------+\n");
+	for (i = 0, hr = 0; i < size; i++, hr++)
 	{
 		device_id = jnx_hash_get(ip_ids, ips[i]);
 		if (device_id)
@@ -205,6 +205,8 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 			char *node_name = results->rows[0][1];
 			jnx_term_printf_in_color(JNX_COL_GREEN, "%02s | %-30s | %-10s | %s | %s |\n", device_id, device_name, node_name, ips[i], jnx_hash_get(ip_macs, ips[i]));
 			remove_mysql_result_bucket(&results);
+			if (hr > 0 && (hr % 4 == 0))
+				printf("---+--------------------------------+------------+-------------+-------------------+\n");
 
 			if (0 < get_last_stat_for_device(device_id, &stat_id, &ping_success))
 			{
@@ -240,7 +242,7 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 			sql_send_query(&results, GET_DEVICE_INFO, device_id);
 			char *device_name = results->rows[0][0];
 			char *node_name = results->rows[0][1];
-			jnx_term_printf_in_color(JNX_COL_RED, "%02s | %-30s | %-10s | %s |\n", device_id, device_name, node_name, ips[i]);
+			jnx_term_printf_in_color(JNX_COL_RED, "%02s | %-30s | %-10s | %s |\n", device_id, device_name, node_name, unresponsive[i]);
 			remove_mysql_result_bucket(&results);
 
 			if (0 < get_last_stat_for_device(device_id, &stat_id, &ping_success))
