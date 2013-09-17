@@ -16,4 +16,4 @@ clean:
 
 install:
 	sudo mv bin/monitor /usr/bin/monitor
-
+	rm -rf bin
