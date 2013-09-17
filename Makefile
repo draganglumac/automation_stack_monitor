@@ -5,7 +5,14 @@ C_FILES=`find $(SRCDIR)  -type f -iname *.c -print`
 
 all: clean build
 
+gdb: clean build_gdb
+
 build:
+	cd $(SRCDIR)
+	gcc	$(C_FILES) -o $(OBJDIR)/monitor -lmysqlclient -ljnxc -lpthread
+	cd $(ROOT)
+
+build_gdb:
 	cd $(SRCDIR)
 	gcc	$(C_FILES) -o $(OBJDIR)/monitor -lmysqlclient -ljnxc -lpthread -g
 	cd $(ROOT)
