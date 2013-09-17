@@ -196,9 +196,6 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 		device_id = jnx_hash_get(ip_ids, ips[i]);
 		if (device_id)
 		{
-			if (hr > 0 && (hr % 4 == 0))
-				printf("---+--------------------------------+------------+-------------+-------------------+\n");
-			
 			char *pt = jnx_string_itos(poll_time);
 			mac_address = (char *) jnx_hash_get(ip_macs, ips[i]);
 			
@@ -206,6 +203,8 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 			char *device_name = results->rows[0][0];
 			char *node_name = results->rows[0][1];
 			jnx_term_printf_in_color(JNX_COL_GREEN, "%02s | %-30s | %-10s | %s | %s |\n", device_id, device_name, node_name, ips[i], jnx_hash_get(ip_macs, ips[i]));
+			if (hr % 4 == 3)
+				printf("---+--------------------------------+------------+-------------+-------------------+\n");
 			remove_mysql_result_bucket(&results);
 
 			if (0 < get_last_stat_for_device(device_id, &stat_id, &ping_success))

@@ -1,6 +1,6 @@
 ROOT=$(PWD)
-OBJDIR=$(PWD)/bin
-SRCDIR=$(PWD)/src
+OBJDIR=$(ROOT)/bin
+SRCDIR=$(ROOT)/src
 C_FILES=`find $(SRCDIR)  -type f -iname *.c -print`
 
 all: clean build
