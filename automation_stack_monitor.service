@@ -1,0 +1,14 @@
+[Unit]
+Description=Automation Stack Monitoring Service
+Wants=mysqld.service
+
+[Service]
+ExecStart=/usr/bin/monitor -c /etc/automation_stack_monitor.conf
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+# This service file runs automation stack monitoring service that ARP queries devices specified in the database configured in /etc/automation_stack_monitor.conf
