@@ -52,7 +52,6 @@ clear_ips_to_mac()
 	for (i = 0; i < size; i++)
 	{
 		free(jnx_hash_delete_value(ips_to_macs,(char*) keys[i]));
-		free((char*) keys[i]);
 	}
 	free(keys);
 	jnx_hash_delete(ips_to_macs);

@@ -1,9 +1,11 @@
 # required parameters
 SQLHOST=127.0.0.1
 SQLDB=AUTOMATION
+#SQLDB=HOMEWIFI
 SQLUSER=dummy
 SQLPASS=dummy
 INTERFACE=enp2s0
+#INTERFACE=wlp1s0
 
 # optional parameters
 RETRIES=5

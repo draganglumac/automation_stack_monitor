@@ -29,11 +29,16 @@
 #include "shared.h"
 
 #define RETRIES 5
+int retries = RETRIES;
 #define TIMEOUT 10
+int timeout = TIMEOUT;
 #define AGGR_RETRIES 5
+int aggr_retries = AGGR_RETRIES;
 #define AGGR_TIMEOUT 5
+int aggr_timeout = AGGR_TIMEOUT;
 
 #define PROBE_TIMEOUT 300
+int probe_timeout = PROBE_TIMEOUT;
 
 jnx_hashmap *config = NULL;
 
@@ -96,6 +101,46 @@ char* check_program_arguments(int argc, char **argv)
 	return configuration;
 }
 
+int
+get_int_from_config(char *key)
+{
+	char *val = jnx_hash_get(config, key);
+	if (val)
+	{
+		int ival = atoi(val);
+		free(val);
+		return ival;
+	}
+
+	return -1;
+}
+
+void
+set_global_constants()
+{
+	int val;
+
+	val = get_int_from_config("RETRIES");
+	if (val > 0)
+		retries = val;
+	
+	val = get_int_from_config("TIMEOUT");
+	if (val > 0)
+		timeout = val;
+	
+	val = get_int_from_config("AGGR_RETRIES");
+	if (val > 0)
+		aggr_retries = val;
+	
+	val = get_int_from_config("AGGR_TIMEOUT");
+	if (val > 0)
+		aggr_timeout = val;
+	
+	val = get_int_from_config("PROBE_TIMEOUT");
+	if (val > 0)
+		probe_timeout = val;
+}
+
 void *start_recv_loop(void *data);
 void *start_send_loop(void *data);
 char **update_devices_to_probe(char **devices, int *num_devices);
@@ -105,7 +150,7 @@ void poll_aggressively(char ***devices, int *num_devices);
 int
 main(int argc, char** argv)
 {
-	int c, i, num_devices, num_machines, probe_timeout, probe_sleep;
+	int i, num_devices, num_machines, probe_sleep;
 	time_t start_time;
 	char *configuration = NULL;
 	pthread_t recv_thread;
@@ -116,16 +161,7 @@ main(int argc, char** argv)
 		usage();
 	}
 
-	char *val = (char*) jnx_hash_get(config, "PROBE_TIMEOUT");
-	if (val)
-	{
-		probe_timeout = atoi(val);
-		free(val);
-	}
-	else
-	{
-		probe_timeout = PROBE_TIMEOUT;
-	}
+	set_global_constants();
 
 	// Reset the probe data structures in preparation for the first poll cycle
 	reset_probe();
@@ -159,7 +195,6 @@ main(int argc, char** argv)
 		reset_probe();
 
 		probe_sleep = probe_timeout - (int)(time(0) - start_time);
-		printf("[DEBUG] Sleeping for %um %us until the next probe cycle.\n", probe_sleep / 60, probe_sleep % 60);
 		sleep(probe_sleep);	
 	}
 
@@ -270,12 +305,12 @@ poll(char ***devices, int *num_devices, int retries, int timeout)
 void
 poll_normally(char ***devices, int *num_devices)
 {
-	poll(devices, num_devices, RETRIES, TIMEOUT);
+	poll(devices, num_devices, retries, timeout);
 }
 
 void
 poll_aggressively(char ***devices, int *num_devices)
 {
-	poll(devices, num_devices, AGGR_RETRIES, AGGR_TIMEOUT);
+	poll(devices, num_devices, aggr_retries, aggr_timeout);
 }
 
