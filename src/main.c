@@ -23,10 +23,14 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "arp/arp.h"
 #include "monitor_db_api.h"
 #include "shared.h"
+
+#define DEFAULT_CONFIG "/etc/automation_stack_monitor.conf"
 
 #define RETRIES 5
 int retries = RETRIES;
@@ -52,7 +56,7 @@ array_size;
 void
 usage()
 {
-	printf("Please provide -c [configuration]\n");
+	printf("Please provide /etc/automation_stack_monitor.conf or pass -c [configuration] argument.\n");
 	exit(0);
 }
 
@@ -75,10 +79,12 @@ parse_conf_file(char *path, jnx_hashmap **config)
 	return 0;
 }
 
-char* check_program_arguments(int argc, char **argv)
+char*
+check_program_arguments(int argc, char **argv)
 {
 	int c;
 	char *configuration = NULL;
+	struct stat confstat;
 
 	while((c = getopt(argc, argv,"c:")) != -1)
 	{
@@ -94,9 +100,13 @@ char* check_program_arguments(int argc, char **argv)
 	}
 
 	if(!configuration)
-	{
-		usage();
-	}
+		if (stat(DEFAULT_CONFIG, &confstat) != 0)			
+			usage();
+		else
+			if (S_ISREG(confstat.st_mode))
+				configuration = DEFAULT_CONFIG; 
+			else
+				usage();
 
 	return configuration;
 }
@@ -123,19 +133,19 @@ set_global_constants()
 	val = get_int_from_config("RETRIES");
 	if (val > 0)
 		retries = val;
-	
+
 	val = get_int_from_config("TIMEOUT");
 	if (val > 0)
 		timeout = val;
-	
+
 	val = get_int_from_config("AGGR_RETRIES");
 	if (val > 0)
 		aggr_retries = val;
-	
+
 	val = get_int_from_config("AGGR_TIMEOUT");
 	if (val > 0)
 		aggr_timeout = val;
-	
+
 	val = get_int_from_config("PROBE_TIMEOUT");
 	if (val > 0)
 		probe_timeout = val;
@@ -159,6 +169,12 @@ main(int argc, char** argv)
 	if(parse_conf_file(configuration,&config) != 0)
 	{
 		usage();
+	}
+
+	if (sql_setup_credentials() != 0)
+	{
+		printf("Couldn't set up SQL credentials. Exiting monitor.\n");
+		exit(1);
 	}
 
 	set_global_constants();
@@ -313,4 +329,3 @@ poll_aggressively(char ***devices, int *num_devices)
 {
 	poll(devices, num_devices, aggr_retries, aggr_timeout);
 }
-
