@@ -185,8 +185,8 @@ main(int argc, char** argv)
 	pthread_create(&recv_thread, NULL, start_recv_loop, NULL);
 	sleep(1);
 
-//	while(1)
-//	{
+	while(1)
+	{
 		start_time = time(0);
 
 		devices = get_devices_to_probe(&num_devices);
@@ -212,7 +212,7 @@ main(int argc, char** argv)
 
 		probe_sleep = probe_timeout - (int)(time(0) - start_time);
 		sleep(probe_sleep);	
-//	}
+	}
 
 	return 0;
 }
