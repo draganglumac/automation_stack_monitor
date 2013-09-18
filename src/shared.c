@@ -106,7 +106,7 @@ pthread_mutex_unlock(&mux);
 	retval = malloc((*size) * sizeof(char**));
 	for (i = 0; i < *size; i++)
 	{
-		retval[i] = malloc(strlen(keys[i]));
+		retval[i] = calloc(strlen(keys[i]) + 1, sizeof(char));
 		strcpy(retval[i], keys[i]);
 	}
 pthread_mutex_unlock(&mux);

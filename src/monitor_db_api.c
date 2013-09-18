@@ -77,7 +77,7 @@ void init_ip_ids()
 char *copy_string(char *in)
 {
 	int len = strlen(in);
-	char *out = calloc(len, sizeof(char));
+	char *out = calloc(len + 1, sizeof(char));
 	strncpy(out, in, len);
 
 	return out;
@@ -121,7 +121,7 @@ char **get_devices_to_probe(int *num_devices)
 	
 	for (i = 0; i < *num_devices; i++)
 	{
-		ips[i] = malloc(strlen(keys[i]));
+		ips[i] = calloc(strlen(keys[i]) + 1, sizeof(char));
 		strcpy(ips[i], keys[i]);
 	}
 
@@ -142,7 +142,7 @@ char **get_machines_to_probe(int *num_machines)
 	
 	for (i = 0; i < *num_machines; i++)
 	{
-		ips[i] = malloc(strlen(keys[i]));
+		ips[i] = calloc(strlen(keys[i]) + 1, sizeof(char));
 		strcpy(ips[i], keys[i]);
 	}
 
