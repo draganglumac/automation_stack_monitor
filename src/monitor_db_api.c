@@ -191,7 +191,7 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 	printf("\n");
 	jnx_term_printf_in_color(JNX_COL_GREEN, "id | device_name                    | node_name  | ip_address  | mac_address       |\n");
 	jnx_term_printf_in_color(JNX_COL_GREEN, "---+--------------------------------+------------+-------------+-------------------+\n");
-	for (i = 0, hr = 0; i < size; i++, hr++)
+	for (i = 0, hr = 0; i < size; i++)
 	{
 		device_id = jnx_hash_get(ip_ids, ips[i]);
 		if (device_id)
@@ -222,6 +222,7 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 			}
 
 			free(pt);
+			hr++;
 		}
 	}
 	free(ips);
@@ -231,7 +232,7 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 	printf("\n");
 	jnx_term_printf_in_color(JNX_COL_RED, "id | device_name                    | node_name  | ip_address  |\n");
 	jnx_term_printf_in_color(JNX_COL_RED, "---+--------------------------------+------------+-------------+\n");	
-	for (i = 0; i < num_unersponsive; i++)
+	for (i = 0, hr = 0; i < num_unersponsive; i++)
 	{
 		device_id = (char *) jnx_hash_get(ip_ids, unresponsive[i]);
 		if (device_id)
@@ -242,6 +243,8 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 			char *device_name = results->rows[0][0];
 			char *node_name = results->rows[0][1];
 			jnx_term_printf_in_color(JNX_COL_RED, "%02s | %-30s | %-10s | %s |\n", device_id, device_name, node_name, unresponsive[i]);
+			if (hr % 4 == 3)
+				printf("---+--------------------------------+------------+-------------+\n");
 			remove_mysql_result_bucket(&results);
 
 			if (0 < get_last_stat_for_device(device_id, &stat_id, &ping_success))
@@ -260,6 +263,7 @@ update_device_stats(time_t poll_time, jnx_hashmap *ip_macs, char **unresponsive,
 			}
 
 			free(pt);
+			hr++;
 		}
 	}
 	printf("\n");
