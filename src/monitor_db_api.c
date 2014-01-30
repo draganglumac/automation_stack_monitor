@@ -25,7 +25,7 @@
 
 #include "monitor_db_api.h"
 
-#define GET_DEVICE_IPS "select id, ip from devices where ip is not null;"
+#define GET_DEVICE_IPS "select d.id, ip from devices d, connected_devices cd where d.id = cd.device_id and ip is not null;"
 #define GET_MACHINE_IPS "select id, ip from machines where ip is not null;"
 #define GET_DEVICE_INFO "select d.name, m.call_sign as machine from devices d, machines m, connected_devices cd where d.id = %s and d.id = cd.device_id and m.id = cd.machine_id;"
 
